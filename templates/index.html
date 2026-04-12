@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Multi-Country COD Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        :root {
+            --bg-base: #060609;
+            --glass-bg: rgba(20, 20, 30, 0.5);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --text-primary: #ffffff;
+            --text-secondary: #94a3b8;
+            --accent-primary: #8b5cf6;
+            --accent-secondary: #ec4899;
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(139, 92, 246, 0.05), transparent 25%),
+                radial-gradient(circle at 90% 80%, rgba(236, 72, 153, 0.05), transparent 25%);
+            background-attachment: fixed;
+        }
+
+        .header { text-align: center; margin-bottom: 24px; }
+        .header h1 {
+            font-size: 32px; font-weight: 700;
+            background: linear-gradient(135deg, #fff, #cbd5e1);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .header p { color: var(--text-secondary); font-size: 15px; margin-top: 6px; }
+
+        .dashboard-layout {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+            width: 100%;
+            max-width: 1350px;
+        }
+
+        @media(min-width: 1100px) {
+            .dashboard-layout { grid-template-columns: 1fr 380px; }
+        }
+
+        .panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        /* Form Layout */
+        .section-divider {
+            display: flex; align-items: center; text-align: center; color: rgba(255,255,255,0.4);
+            font-size: 11px; margin: 20px 0 16px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .section-divider::before, .section-divider::after { content: ''; flex: 1; border-bottom: 1px dashed rgba(255,255,255,0.05); }
+        .section-divider::before { margin-right: 12px; }
+        .section-divider::after { margin-left: 12px; }
+
+        .input-row { display: flex; gap: 12px; margin-bottom: 14px; }
+        .input-row .input-wrapper { flex: 1; }
+        
+        label {
+            display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 500;
+            color: var(--text-secondary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+
+        .input-wrapper { position: relative; width: 100%; display: flex; flex-direction: column; }
+        
+        input, select {
+            width: 100%; background: rgba(0, 0, 0, 0.4); border: 1px solid var(--glass-border);
+            border-radius: 8px; padding: 10px 12px; color: var(--text-primary);
+            font-size: 14px; font-family: inherit; outline: none; transition: 0.2s;
+        }
+        input:focus, select:focus { border-color: var(--accent-primary); background: rgba(0, 0, 0, 0.6); box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15); }
+        select option { color: black; }
+        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); opacity: 0.6; cursor: pointer; }
+
+        /* Multi Country Rows */
+        .countries-container { display: flex; flex-direction: column; gap: 16px; }
+        .country-row {
+            background: rgba(0, 0, 0, 0.3); border: 1px solid var(--glass-border);
+            border-radius: 12px; padding: 18px; position: relative; border-left: 4px solid var(--accent-primary);
+        }
+        .row-header { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+        .row-header input { flex: 2; min-width: 140px; }
+        .row-header select { flex: 1; min-width: 100px; }
+        
+        .btn-remove-row { background: rgba(239,68,68,0.1); color: var(--danger); border: none; border-radius: 6px; width: 34px; height: 34px; cursor: pointer; transition: 0.2s; }
+        .btn-remove-row:hover { background: rgba(239,68,68,0.3); }
+        
+        .input-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+        .cr-cpl-display, .cr-profit-display { 
+            width: 100%; height: 38px; display: flex; align-items: center; 
+            padding: 0 12px; font-size: 14px; font-weight: 600; border-radius: 8px;
+            background: rgba(0,0,0,0.5); border: 1px dotted rgba(255,255,255,0.1);
+        }
+        .cr-cpl-display { color: var(--accent-primary); }
+
+        .btn-add { background: rgba(139,92,246,0.1); border: 1px dashed var(--accent-primary); color: var(--accent-primary); border-radius: 10px; padding: 14px; width: 100%; cursor: pointer; font-family: inherit; font-weight: 600; font-size: 14px; transition: 0.2s; margin-top: 16px;}
+        .btn-add:hover { background: rgba(139,92,246,0.2); }
+
+        /* Bottom Section of Left Column */
+        .bottom-calc { display: flex; gap: 24px; margin-top: 30px; flex-wrap: wrap;}
+        .live-results {
+            background: rgba(0, 0, 0, 0.4); border: 1px solid var(--glass-border);
+            border-radius: 16px; padding: 20px; flex: 1; min-width: 250px;
+        }
+        .r-item { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-secondary); padding: 5px 0;}
+        .r-item span:last-child { color: var(--text-primary); font-weight: 500; }
+        .r-item.sub { font-size: 12px; padding-left: 12px; color: rgba(255,255,255,0.4); border-left: 2px solid rgba(255,255,255,0.05); margin-left: 6px; }
+        .r-item.highlight { border-top: 1px dashed var(--glass-border); font-size: 18px; margin-top: 8px; padding-top: 12px;}
+        .r-item.highlight span:last-child { font-size: 22px; font-weight: 700; }
+        
+        .val-positive { color: var(--success) !important; }
+        .val-negative { color: var(--danger) !important; }
+
+        .btn-primary {
+            width: 100%; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            color: white; border: none; border-radius: 12px; padding: 18px; font-size: 16px; font-weight: 700;
+            cursor: pointer; transition: 0.2s; box-shadow: 0 10px 20px -10px rgba(139, 92, 246, 0.6);
+        }
+        .btn-primary:active { transform: scale(0.98); }
+
+        /* Right Column Dashboard */
+        .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 24px; }
+        .kpi-card { background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 16px; padding: 18px; text-align: center; }
+        .kpi-title { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; font-weight: 600; margin-bottom: 6px; letter-spacing: 0.5px;}
+        .kpi-val { font-size: 20px; font-weight: 700; color: #fff; }
+
+        .charts-row { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 24px; }
+        .chart-container { background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); border-radius: 16px; padding: 16px; min-height: 220px;}
+
+        /* History */
+        .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .history-header h2 { font-size: 16px; font-weight: 600; }
+        .btn-export { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid var(--glass-border); border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; transition: 0.2s; font-family: inherit;}
+        .btn-export:hover { background: rgba(255,255,255,0.2); }
+
+        .history-list { display: flex; flex-direction: column; gap: 12px; max-height: 500px; overflow-y: auto; padding-right: 6px;}
+        .history-list::-webkit-scrollbar { width: 5px; }
+        .history-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 10px; }
+        
+        .history-item { background: rgba(0,0,0,0.4); border: 1px solid var(--glass-border); border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
+        .history-item:hover { background: rgba(0,0,0,0.7); border-color: rgba(255,255,255,0.15);}
+        .h-info { display: flex; flex-direction: column; gap: 6px; flex: 1;}
+        .h-dates { font-size: 13px; color: var(--text-primary); font-weight: 600; }
+        .h-metrics { font-size: 12px; color: var(--text-secondary); display: flex; flex-wrap: wrap; gap: 8px;}
+        .h-profit { font-size: 18px; font-weight: 700; margin-top: 4px; }
+        
+        .btn-delete { background: rgba(239,68,68,0.1); color: var(--danger); border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; margin-left: 12px;}
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>Enterprise Campaign Matrix</h1>
+        <p>Per-SKU Tracking • Live Profit & CPL Metrics</p>
+    </div>
+
+    <div class="dashboard-layout">
+        
+        <!-- LEFT COLUMN: INPUT FORM -->
+        <div class="panel">
+            <div style="font-size: 18px; font-weight: 600; margin-bottom: 20px;">Weekly Form</div>
+            <form id="calc-form">
+                
+                <div class="input-row">
+                    <div class="input-wrapper">
+                        <label>Date From</label>
+                        <input type="date" id="in-date-from" required>
+                    </div>
+                    <div class="input-wrapper">
+                        <label>Date To</label>
+                        <input type="date" id="in-date-to" required>
+                    </div>
+                </div>
+
+                <div class="section-divider">Campaign Breakdown (Row by Row)</div>
+                <div id="countries-container" class="countries-container">
+                    <!-- Rows dynamically inserted here -->
+                </div>
+                
+                <button type="button" class="btn-add" onclick="addCountryRow()">+ Add Campaign Row</button>
+
+            </form>
+
+            <div class="bottom-calc">
+                <div class="live-results">
+                    <h3 style="font-size: 14px; margin-bottom: 12px; color: #fff;">Aggregate Weekly P&L Summary</h3>
+                    <div class="r-item"><span>Total Gross Revenue</span> <span id="lp-rev" class="val-positive">$0.00</span></div>
+                    
+                    <div class="r-item" style="border-top:1px solid rgba(255,255,255,0.1); margin-top:8px; padding-top:8px;"><span>Total Network Spend</span> <span id="lp-spend">$0.00</span></div>
+                    <div class="r-item"><span>Total Product COGS</span> <span id="lp-cogs">$0.00</span></div>
+                    
+                    <div class="r-item" style="color:#d8b4fe; margin-top:8px;"><span>Partner Platform Fees</span> <span id="lp-partner">$0.00</span></div>
+                    <div class="r-item sub"><span>Lead Gen (0.50$/ea)</span> <span id="lp-cc-lead">$0.00</span></div>
+                    <div class="r-item sub"><span>Call Center Ops</span> <span id="lp-cc-fees">$0.00</span></div>
+                    <div class="r-item sub"><span>Shipping Logistics</span> <span id="lp-shipping">$0.00</span></div>
+                    <div class="r-item sub"><span>COD Surcharge (5%)</span> <span id="lp-cod">$0.00</span></div>
+
+                    <div class="r-item highlight"><span>Net Profit</span> <span id="lp-profit">$0.00</span></div>
+                </div>
+
+                <div style="flex:1; display:flex; align-items:flex-end; min-width: 250px;">
+                    <button type="button" id="btn-save" class="btn-primary">💾 Save Weekly Matrix</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: DASHBOARD -->
+        <div class="right-column">
+            
+            <div class="kpi-grid">
+                <div class="kpi-card">
+                    <div class="kpi-title">Global Profit</div>
+                    <div class="kpi-val" id="kpi-profit">$0</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-title">Avg CPL</div>
+                    <div class="kpi-val" id="kpi-cpl">$0</div>
+                </div>
+            </div>
+
+            <div class="charts-row">
+                <div class="chart-container">
+                    <div style="position: relative; height: 180px; width: 100%;">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <div style="position: relative; height: 180px; width: 100%;">
+                        <canvas id="spendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="history-header">
+                    <h2>Saved Entries</h2>
+                    <button id="btn-export" class="btn-export">⬇️ Export Flattened CSV</button>
+                </div>
+                <div id="history-list" class="history-list"></div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- MAIN LOGIC JAVASCRIPT -->
+    <script>
+        // Data Models
+        const SHIPPING_TIERS = {
+            'KSA': { ret: 2.99, del: 4.49 },
+            'Oman': { ret: 4.99, del: 5.49 },
+            'Kuwait': { ret: 4.99, del: 5.49 },
+            'UAE': { ret: 3.99, del: 4.49 },
+            'Qatar': { ret: 4.99, del: 5.49 },
+            'Bahrain': { ret: 4.99, del: 5.49 },
+            'Iraq': { ret: 3.99, del: 4.99 }
+        };
+
+        const CALL_CENTER_FEES = {
+            'Gadget': { conf: 1.0, del: 2.0 },
+            'Cosmetic': { conf: 2.0, del: 3.0 }
+        };
+
+        const PRODUCTS_MAP = {
+            "Blue Product": "CopillaouPros",
+            "Dark Skin Gel": "CopillaouLotion",
+            "Car spray BOX": "CopillaouCoating",
+            "Under eye cream": "CopillaouQingling + boX",
+            "Car Spray": "CopillaouCoating + CopillaouSpray",
+            "Qingling Under eye": "CopillaouQingling",
+            "WAX car": "CopillaouScratch",
+            "CockRoach": "CopFridiRoach",
+            "Car Spray 30CL": "CopillaouSpray",
+            "SKIN": "SKIN",
+            "TEST CAR SPRAY": "TEST CAR SPRAY",
+            "TEST DARK SKIN": "TEST DARK SKIN"
+        };
+
+        const COUNTRY_OPTIONS = Object.keys(SHIPPING_TIERS).map(c => `<option value="${c}">${c}</option>`).join('');
+        const PRODUCT_OPTIONS = Object.keys(PRODUCTS_MAP).map(p => `<option value="${p}">${p}</option>`).join('');
+
+        function removeRow(btn) {
+            btn.parentElement.parentElement.remove();
+            calculateLive();
+        }
+
+        function handleProductChange(selectEl) {
+            const row = selectEl.parentElement.parentElement;
+            const skuInput = row.querySelector('.cr-sku');
+            skuInput.value = PRODUCTS_MAP[selectEl.value] || '-';
+            calculateLive();
+        }
+
+        function addCountryRow(defaultData = null) {
+            const container = document.getElementById('countries-container');
+            const row = document.createElement('div');
+            row.className = 'country-row';
+            
+            row.innerHTML = `
+                <div class="row-header">
+                    <select class="cr-product" onchange="handleProductChange(this)">
+                        <option value="">-- Select Product --</option>
+                        ${PRODUCT_OPTIONS}
+                    </select>
+                    <input type="text" class="cr-sku" placeholder="SKU" readonly style="background: rgba(0,0,0,0.6); color: var(--text-secondary); cursor: not-allowed;">
+                    <select class="cr-category"><option value="Gadget">Gadget</option><option value="Cosmetic">Cosmetic</option></select>
+                    <select class="cr-country">${COUNTRY_OPTIONS}</select>
+                    <button type="button" class="btn-remove-row" onclick="removeRow(this)">✕</button>
+                </div>
+                <div class="input-grid">
+                    <div class="input-wrapper"><label>Leads (Amount)</label><input type="number" class="cr-leads" placeholder="0"></div>
+                    <div class="input-wrapper"><label>Spend ($)</label><input type="number" class="cr-spend" placeholder="0"></div>
+                    <div class="input-wrapper"><label>CPL</label><div class="cr-cpl-display">$0.00</div></div>
+                    <div class="input-wrapper"></div>
+                    
+                    <div class="input-wrapper"><label>Price ($)</label><input type="number" class="cr-price" value="50" step="0.5"></div>
+                    <div class="input-wrapper"><label>COGS ($)</label><input type="number" class="cr-cogs" value="5" step="0.5"></div>
+                    <div class="input-wrapper"><label>Conf. (%)</label><input type="number" class="cr-conf" placeholder="50"></div>
+                    <div class="input-wrapper"><label>Deliv. (%)</label><input type="number" class="cr-del" placeholder="50"></div>
+                    
+                    <div class="input-wrapper"><label>Returned</label><input type="number" class="cr-ret" placeholder="0"></div>
+                    <div class="input-wrapper"><label>Upsells</label><input type="number" class="cr-up" placeholder="0"></div>
+                    <div class="input-wrapper" style="grid-column: span 2"><label>Local ROW Net Profit</label><div class="cr-profit-display" style="color:#fff">$0.00</div></div>
+                </div>
+            `;
+            
+            if(defaultData) {
+                row.querySelector('.cr-product').value = defaultData.product || '';
+                row.querySelector('.cr-sku').value = defaultData.sku || '';
+                row.querySelector('.cr-country').value = defaultData.country || 'Oman';
+            }
+
+            row.querySelectorAll('input, select').forEach(el => el.addEventListener('input', calculateLive));
+            container.appendChild(row);
+            calculateLive();
+        }
+
+        function calculateLive() {
+            let globalRev = 0, globalCOGS = 0, globalCOD = 0, globalShipping = 0, globalCallCenter = 0;
+            let globalAdSpend = 0, globalLeadFee = 0, globalDelivered = 0, globalLeads = 0;
+            let countrySpendMapping = {};
+
+            const campaignsToSave = [];
+
+            document.querySelectorAll('.country-row').forEach(row => {
+                const product = row.querySelector('.cr-product').value || 'Unspecified';
+                const sku = row.querySelector('.cr-sku').value || '-';
+                const category = row.querySelector('.cr-category').value;
+                const country = row.querySelector('.cr-country').value;
+
+                const leads = parseInt(row.querySelector('.cr-leads').value) || 0;
+                const spend = parseFloat(row.querySelector('.cr-spend').value) || 0;
+                
+                const cpl = leads > 0 ? (spend / leads) : 0;
+                row.querySelector('.cr-cpl-display').innerText = `$${cpl.toFixed(2)}`;
+                
+                const price = parseFloat(row.querySelector('.cr-price').value) || 0;
+                const cogs = parseFloat(row.querySelector('.cr-cogs').value) || 0;
+                const confPerc = parseFloat(row.querySelector('.cr-conf').value) || 0;
+                const delPerc = parseFloat(row.querySelector('.cr-del').value) || 0;
+                const ret = parseInt(row.querySelector('.cr-ret').value) || 0;
+                const up = parseInt(row.querySelector('.cr-up').value) || 0;
+
+                const absoluteConf = Math.round(leads * (confPerc / 100));
+                const absoluteDel = Math.round(absoluteConf * (delPerc / 100));
+
+                const rowRev = absoluteDel * price;
+                const rowCogs = absoluteDel * cogs;
+                const rowLeadFee = leads * 0.50; 
+                
+                const ccRateConf = CALL_CENTER_FEES[category].conf;
+                const ccRateDel = CALL_CENTER_FEES[category].del;
+                const rowCallCenter = (absoluteConf * ccRateConf) + (absoluteDel * ccRateDel) + (up * 1.0);
+                
+                const rowShipping = (absoluteDel * SHIPPING_TIERS[country].del) + (ret * SHIPPING_TIERS[country].ret);
+                const rowCod = rowRev * 0.05;
+
+                const rowPartnerFees = rowLeadFee + rowCallCenter + rowShipping + rowCod;
+                const rowExpenses = spend + rowCogs + rowPartnerFees;
+                const rowProfit = rowRev - rowExpenses;
+
+                const elProfit = row.querySelector('.cr-profit-display');
+                elProfit.innerText = (rowProfit >= 0 ? '+' : '') + `$${rowProfit.toFixed(2)}`;
+                elProfit.style.color = rowProfit >= 0 ? 'var(--success)' : 'var(--danger)';
+
+                globalLeads += leads;
+                globalAdSpend += spend;
+                globalDelivered += absoluteDel;
+                globalRev += rowRev;
+                globalCOGS += rowCogs;
+                globalLeadFee += rowLeadFee;
+                globalCallCenter += rowCallCenter;
+                globalShipping += rowShipping;
+                globalCOD += rowCod;
+                
+                countrySpendMapping[country] = (countrySpendMapping[country] || 0) + spend;
+
+                campaignsToSave.push({
+                    product, sku, category, country, leads, spend, cpl,
+                    price, cogs, confPerc, delPerc, absoluteConf, absoluteDel, ret, up,
+                    rowRev, rowPartnerFees, rowProfit
+                });
+            });
+
+            const globalPartnerFees = globalLeadFee + globalCallCenter + globalShipping + globalCOD;
+            const globalExpenses = globalAdSpend + globalCOGS + globalPartnerFees;
+            const globalNetProfit = globalRev - globalExpenses;
+
+            document.getElementById('lp-rev').innerText = `$${globalRev.toFixed(2)}`;
+            document.getElementById('lp-spend').innerText = `$${globalAdSpend.toFixed(2)}`;
+            document.getElementById('lp-cogs').innerText = `$${globalCOGS.toFixed(2)}`;
+            
+            document.getElementById('lp-partner').innerText = `$${globalPartnerFees.toFixed(2)}`;
+            document.getElementById('lp-cc-lead').innerText = `$${globalLeadFee.toFixed(2)}`;
+            document.getElementById('lp-cc-fees').innerText = `$${globalCallCenter.toFixed(2)}`;
+            document.getElementById('lp-shipping').innerText = `$${globalShipping.toFixed(2)}`;
+            document.getElementById('lp-cod').innerText = `$${globalCOD.toFixed(2)}`;
+
+            const elGLProfit = document.getElementById('lp-profit');
+            elGLProfit.innerText = (globalNetProfit >= 0 ? '+' : '') + `$${globalNetProfit.toFixed(2)}`;
+            elGLProfit.className = globalNetProfit >= 0 ? 'val-positive' : 'val-negative';
+
+            return { 
+                globalRev, globalAdSpend, globalLeads, globalDelivered, 
+                globalNetProfit, countrySpendMapping, campaignsToSave 
+            };
+        }
+
+        // ================= DASHBOARD RENDERING =================
+        let trendChartInst = null, spendChartInst = null;
+        async function loadHistory() {
+            try {
+                const res = await fetch('/api/history');
+                return await res.json();
+            } catch(e) { console.error(e); return []; }
+        }
+        async function saveHistory(record) {
+            await fetch('/api/history', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(record)
+            });
+        }
+
+        async function renderDashboard() {
+            const history = await loadHistory();
+            const listEl = document.getElementById('history-list');
+            listEl.innerHTML = '';
+            
+            if (history.length === 0) {
+                listEl.innerHTML = '<div style="color:var(--text-secondary); text-align:center; padding: 20px;">No saved history found. Start tracking!</div>';
+            } else {
+                history.forEach((h) => {
+                    const el = document.createElement('div');
+                    el.className = 'history-item';
+                    const sign = h.globalNetProfit >= 0 ? '+' : '';
+                    const d1 = new Date(h.dateFrom).toLocaleDateString('en-GB', {day:'numeric', month:'short'});
+                    const d2 = new Date(h.dateTo).toLocaleDateString('en-GB', {day:'numeric', month:'short'});
+                    const cpl = h.globalLeads > 0 ? (h.globalAdSpend / h.globalLeads).toFixed(2) : '0.00';
+
+                    el.innerHTML = `
+                        <div class="h-info">
+                            <div class="h-dates">🗓️ ${d1} to ${d2} <span style="font-weight:400; color:#94a3b8; font-size:11px">(${h.campaignsToSave?.length || 1} campaigns)</span></div>
+                            <div class="h-metrics">
+                                <span>Spend: $${(h.globalAdSpend||0).toFixed(0)}</span>
+                                <span>Leads: ${h.globalLeads||0}</span>
+                                <span>Deliv: ${h.globalDelivered||0}</span>
+                            </div>
+                            <div class="h-profit ${h.globalNetProfit >= 0 ? 'val-positive' : 'val-negative'}">${sign}$${(h.globalNetProfit||0).toFixed(2)} Profit</div>
+                        </div>
+                        <button class="btn-delete" onclick="deleteRecord('${h.id}')" title="Delete">✕</button>
+                    `;
+                    listEl.appendChild(el);
+                });
+            }
+
+            let allProfit = 0, allSpend = 0, allLeads = 0, combinedSpends = {};
+
+            history.forEach(h => {
+                allProfit += (h.globalNetProfit || 0);
+                allSpend += (h.globalAdSpend || 0);
+                allLeads += (h.globalLeads || 0);
+                if(h.countrySpendMapping) {
+                    Object.keys(h.countrySpendMapping).forEach(c => {
+                        combinedSpends[c] = (combinedSpends[c] || 0) + h.countrySpendMapping[c];
+                    });
+                }
+            });
+
+            document.getElementById('kpi-profit').innerText = (allProfit >= 0 ? '+' : '') + `$${allProfit.toFixed(0)}`;
+            document.getElementById('kpi-profit').style.color = allProfit >= 0 ? 'var(--success)' : 'var(--danger)';
+            document.getElementById('kpi-cpl').innerText = `$${allLeads > 0 ? (allSpend/allLeads).toFixed(2) : '0'}`;
+
+            // Charts
+            const chron = [...history].reverse();
+            const labels = chron.map(h => new Date(h.dateFrom).toLocaleDateString('en-US', {month:'short', day:'numeric'}));
+
+            if (trendChartInst) trendChartInst.destroy();
+            trendChartInst = new Chart(document.getElementById('trendChart').getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'Net Profit ($)', data: chron.map(h => h.globalNetProfit), borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.3, borderWidth: 2 },
+                        { label: 'Network Spend ($)', data: chron.map(h => h.globalAdSpend), borderColor: '#8b5cf6', backgroundColor: 'transparent', tension: 0.3, borderWidth: 2, borderDash: [5, 5] }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, color: '#94a3b8', plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } }, x: { grid: { display: false }, ticks: { color: '#94a3b8' } } } }
+            });
+
+            // Color dictionary for consistent chart looks
+            const colorsObj = {'Oman': '#eab308', 'KSA': '#22c55e', 'UAE': '#ef4444', 'Kuwait': '#3b82f6', 'Qatar': '#8b5cf6', 'Bahrain': '#ec4899', 'Iraq': '#a8a29e'};
+            const dLabels = Object.keys(combinedSpends).length > 0 ? Object.keys(combinedSpends) : ['No Data'];
+            const dVals = Object.keys(combinedSpends).length > 0 ? Object.values(combinedSpends) : [1];
+            const dColors = dLabels[0] === 'No Data' ? ['rgba(255,255,255,0.1)'] : dLabels.map(l => colorsObj[l] || '#1877F2');
+
+            if (spendChartInst) spendChartInst.destroy();
+            spendChartInst = new Chart(document.getElementById('spendChart').getContext('2d'), {
+                type: 'doughnut',
+                data: { labels: dLabels, datasets: [{ data: dVals, backgroundColor: dColors, borderWidth: 0, hoverOffset: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { title: {display: true, color: '#fff', text: 'Spend by Country'}, legend: { position: 'right', labels: { color: '#94a3b8', boxWidth: 10 } } } }
+            });
+        }
+
+        window.deleteRecord = async function(id) {
+            if(!confirm("Delete this week's matrix block?")) return;
+            await fetch(`/api/history/${id}`, { method: 'DELETE' });
+            await renderDashboard();
+        };
+
+        document.getElementById('btn-save').addEventListener('click', async () => {
+            const dateFrom = document.getElementById('in-date-from').value;
+            const dateTo = document.getElementById('in-date-to').value;
+            if(!dateFrom || !dateTo) return alert("Dates required.");
+
+            const metrics = calculateLive();
+            if(metrics.globalAdSpend === 0 && metrics.globalLeads === 0) return alert("Please enter metrics.");
+
+            const record = { id: Date.now(), dateFrom, dateTo, ...metrics, savedAt: new Date().toISOString() };
+            await saveHistory(record);
+            await renderDashboard();
+            alert("Matrix entry saved.");
+        });
+
+        document.getElementById('btn-export').addEventListener('click', async () => {
+            const history = await loadHistory();
+            if(history.length === 0) return alert("No history to export.");
+
+            const headers = [
+                "Start Date", "End Date", "Product", "SKU", "Category", "Country", 
+                "Leads", "Spend ($)", "CPL", "Conf. Rate (%)", "Deliv. Rate (%)", 
+                "Abs. Confirmations", "Abs. Deliveries", "Returned", "Upsells",
+                "Unit Price", "COGS", "Row Revenue", "Partner Extrapolated Expenses", "Campaign Net Profit"
+            ];
+
+            const rows = [];
+            history.forEach(h => {
+                if(h.campaignsToSave && h.campaignsToSave.length > 0) {
+                    h.campaignsToSave.forEach(c => {
+                        rows.push([
+                            h.dateFrom, h.dateTo, c.product, c.sku, c.category, c.country,
+                            c.leads, c.spend, c.cpl.toFixed(2), c.confPerc, c.delPerc,
+                            c.absoluteConf, c.absoluteDel, c.ret, c.up,
+                            c.price, c.cogs, c.rowRev.toFixed(2), c.rowPartnerFees.toFixed(2), c.rowProfit.toFixed(2)
+                        ]);
+                    });
+                }
+            });
+
+            const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
+            const link = document.createElement("a");
+            link.setAttribute("href", encodeURI(csvContent));
+            link.setAttribute("download", "cod_campaigns_matrix.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const today = new Date();
+            document.getElementById('in-date-to').valueAsDate = today;
+            document.getElementById('in-date-from').valueAsDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+            addCountryRow({ product: 'Car Spray', sku: 'CopillaouCoating', country: 'Oman' });
+            await renderDashboard();
+        });
+
+    </script>
+</body>
+</html>
