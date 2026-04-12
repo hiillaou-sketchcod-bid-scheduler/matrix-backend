@@ -579,7 +579,13 @@
             ];
 
             const rows = [];
+            let totalSpend = 0, totalLeads = 0, totalProfit = 0;
+            
             history.forEach(h => {
+                totalSpend += (h.globalAdSpend || 0);
+                totalLeads += (h.globalLeads || 0);
+                totalProfit += (h.globalNetProfit || 0);
+                
                 if(h.campaignsToSave && h.campaignsToSave.length > 0) {
                     h.campaignsToSave.forEach(c => {
                         rows.push([
@@ -591,6 +597,9 @@
                     });
                 }
             });
+
+            const avgCPL = totalLeads > 0 ? (totalSpend / totalLeads) : 0;
+            rows.push([], ["", "", "", "", "", "GLOBAL TOTALS (All Exported Data):", totalLeads, totalSpend.toFixed(2), avgCPL.toFixed(2), "", "", "", "", "", "", "", "", "", "", totalProfit.toFixed(2)]);
 
             const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
             const link = document.createElement("a");
