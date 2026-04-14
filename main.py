@@ -22,6 +22,12 @@ class MatrixRecord(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     data = Column(Text) # JSON string
 
+class MatrixPendingRecord(Base):
+    __tablename__ = "matrix_pending_records"
+    id = Column(String, primary_key=True, index=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    data = Column(Text) # JSON string
+
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Enterprise Matrix API")
@@ -78,3 +84,45 @@ def delete_history(record_id: str):
         return {"status": "success"}
     finally:
         db.close()
+
+@app.get("/api/pending")
+def get_pending():
+    db = SessionLocal()
+    try:
+        records = db.query(MatrixPendingRecord).order_by(MatrixPendingRecord.created_at.desc()).all()
+        return [json.loads(r.data) for r in records]
+    finally:
+        db.close()
+
+@app.post("/api/pending")
+async def save_pending(request: Request):
+    data = await request.json()
+    record_id = str(data.get("id"))
+    if not record_id:
+        raise HTTPException(status_code=400, detail="Missing ID")
+    
+    db = SessionLocal()
+    try:
+        new_record = MatrixPendingRecord(
+            id=record_id,
+            data=json.dumps(data)
+        )
+        db.add(new_record)
+        db.commit()
+        return {"status": "success"}
+    finally:
+        db.close()
+
+@app.delete("/api/pending/{record_id}")
+def delete_pending(record_id: str):
+    db = SessionLocal()
+    try:
+        record = db.query(MatrixPendingRecord).filter(MatrixPendingRecord.id == record_id).first()
+        if not record:
+            raise HTTPException(status_code=404, detail="Not found")
+        db.delete(record)
+        db.commit()
+        return {"status": "success"}
+    finally:
+        db.close()
+

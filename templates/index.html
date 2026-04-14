@@ -20,6 +20,7 @@
             --accent-secondary: #ec4899;
             --success: #10b981;
             --danger: #ef4444;
+            --warning: #eab308;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -46,6 +47,24 @@
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
         }
         .header p { color: var(--text-secondary); font-size: 15px; margin-top: 6px; }
+
+        /* Role Switcher */
+        .role-switcher {
+            display: inline-flex; background: rgba(0,0,0,0.4); padding: 5px; border-radius: 12px; border: 1px solid var(--glass-border); margin-top: 16px; align-items: center; justify-content: center;
+        }
+        .role-switcher button {
+            background: transparent; border: none; color: var(--text-secondary); padding: 10px 24px; font-family: inherit; font-size: 14px; font-weight: 600; border-radius: 8px; cursor: pointer; transition: 0.3s;
+        }
+        .role-switcher button.active { background: var(--accent-primary); color: #fff; box-shadow: 0 4px 12px rgba(139,92,246,0.4); }
+        .role-switcher button.active#btn-mgr { background: var(--warning); box-shadow: 0 4px 12px rgba(234,179,8,0.3); }
+
+        /* Role Display Logic */
+        body[data-role="operator"] .mgr-only { display: none !important; }
+        body[data-role="manager"] .op-only { display: none !important; }
+        body[data-role="manager"] .op-field input, 
+        body[data-role="manager"] .op-field select { pointer-events: none; opacity: 0.5; }
+        body[data-role="manager"] .btn-remove-row { display: none; }
+        body[data-role="manager"] .btn-add { display: none; }
 
         .dashboard-layout {
             display: grid;
@@ -143,6 +162,8 @@
             cursor: pointer; transition: 0.2s; box-shadow: 0 10px 20px -10px rgba(139, 92, 246, 0.6);
         }
         .btn-primary:active { transform: scale(0.98); }
+        .btn-success { background: linear-gradient(135deg, var(--success), #34d399); box-shadow: 0 10px 20px -10px rgba(16, 185, 129, 0.6); }
+        .btn-warning { background: linear-gradient(135deg, var(--warning), #facc15); box-shadow: 0 10px 20px -10px rgba(234, 179, 8, 0.6); color: #000; }
 
         /* Right Column Dashboard */
         .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 24px; }
@@ -159,12 +180,14 @@
         .btn-export { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid var(--glass-border); border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; transition: 0.2s; font-family: inherit;}
         .btn-export:hover { background: rgba(255,255,255,0.2); }
 
-        .history-list { display: flex; flex-direction: column; gap: 12px; max-height: 500px; overflow-y: auto; padding-right: 6px;}
+        .history-list { display: flex; flex-direction: column; gap: 12px; max-height: 350px; overflow-y: auto; padding-right: 6px;}
         .history-list::-webkit-scrollbar { width: 5px; }
         .history-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 10px; }
         
-        .history-item { background: rgba(0,0,0,0.4); border: 1px solid var(--glass-border); border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; }
+        .history-item { background: rgba(0,0,0,0.4); border: 1px solid var(--glass-border); border-radius: 12px; padding: 16px; display: flex; justify-content: space-between; align-items: center; transition: 0.2s; cursor: pointer;}
         .history-item:hover { background: rgba(0,0,0,0.7); border-color: rgba(255,255,255,0.15);}
+        .history-item.active { border-color: var(--warning); background: rgba(234,179,8,0.1); }
+        .history-item.selected { border-color: var(--accent-primary); background: rgba(139,92,246,0.15); box-shadow: inset 0 0 0 1px var(--accent-primary); }
         .h-info { display: flex; flex-direction: column; gap: 6px; flex: 1;}
         .h-dates { font-size: 13px; color: var(--text-primary); font-weight: 600; }
         .h-metrics { font-size: 12px; color: var(--text-secondary); display: flex; flex-wrap: wrap; gap: 8px;}
@@ -173,21 +196,37 @@
         .btn-delete { background: rgba(239,68,68,0.1); color: var(--danger); border: none; width: 32px; height: 32px; border-radius: 8px; cursor: pointer; margin-left: 12px;}
     </style>
 </head>
-<body>
+<body data-role="operator">
 
     <div class="header">
         <h1>Enterprise Campaign Matrix</h1>
         <p>Per-SKU Tracking • Live Profit & CPL Metrics</p>
+        <div class="role-switcher">
+            <button id="btn-op" class="active" onclick="setRole('operator')">👨‍💻 Operator Mode</button>
+            <button id="btn-mgr" onclick="setRole('manager')">👑 Manager Mode</button>
+            <button id="btn-target" onclick="setRole('target')">🎯 Target 2026</button>
+        </div>
     </div>
 
     <div class="dashboard-layout">
         
         <!-- LEFT COLUMN: INPUT FORM -->
         <div class="panel">
-            <div style="font-size: 18px; font-weight: 600; margin-bottom: 20px;">Weekly Form</div>
+
+            <!-- Pending Approvals Box (Manager Only) -->
+            <div class="mgr-only" style="margin-bottom: 24px; padding-bottom: 24px; border-bottom: 1px dashed rgba(255,255,255,0.1);">
+                <div style="font-size: 16px; font-weight: 600; margin-bottom: 12px; color: var(--warning);">⏳ Pending Operator Entries</div>
+                <div id="pending-list" class="history-list" style="max-height: 200px;"></div>
+                <div id="no-pending-msg" style="font-size: 13px; color: var(--text-secondary);">No pending entries available.</div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 20px;">
+                <div style="font-size: 18px; font-weight: 600;">Worksheet</div>
+                <div class="mgr-only" id="current-loaded-id" style="font-size: 12px; color: var(--warning); display:none;">Editing ID: <span></span></div>
+            </div>
+
             <form id="calc-form">
-                
-                <div class="input-row">
+                <div class="input-row op-field">
                     <div class="input-wrapper">
                         <label>Date From</label>
                         <input type="date" id="in-date-from" required>
@@ -198,17 +237,16 @@
                     </div>
                 </div>
 
-                <div class="section-divider">Campaign Breakdown (Row by Row)</div>
+                <div class="section-divider op-field">Campaign Breakdown (Row by Row)</div>
                 <div id="countries-container" class="countries-container">
                     <!-- Rows dynamically inserted here -->
                 </div>
                 
-                <button type="button" class="btn-add" onclick="addCountryRow()">+ Add Campaign Row</button>
-
+                <button type="button" class="btn-add op-only" onclick="addCountryRow()">+ Add Campaign Row</button>
             </form>
 
             <div class="bottom-calc">
-                <div class="live-results">
+                <div class="live-results mgr-only">
                     <h3 style="font-size: 14px; margin-bottom: 12px; color: #fff;">Aggregate Weekly P&L Summary</h3>
                     <div class="r-item"><span>Total Gross Revenue</span> <span id="lp-rev" class="val-positive">$0.00</span></div>
                     
@@ -220,12 +258,21 @@
                     <div class="r-item sub"><span>Call Center Ops</span> <span id="lp-cc-fees">$0.00</span></div>
                     <div class="r-item sub"><span>Shipping Logistics</span> <span id="lp-shipping">$0.00</span></div>
                     <div class="r-item sub"><span>COD Surcharge (5%)</span> <span id="lp-cod">$0.00</span></div>
+                    <div class="r-item sub"><span>Exchange Fees (1.5%)</span> <span id="lp-exchange">$0.00</span></div>
 
                     <div class="r-item highlight"><span>Net Profit</span> <span id="lp-profit">$0.00</span></div>
                 </div>
 
-                <div style="flex:1; display:flex; align-items:flex-end; min-width: 250px;">
-                    <button type="button" id="btn-save" class="btn-primary">💾 Save Weekly Matrix</button>
+                <div style="flex:1; display:flex; flex-direction:column; align-items:flex-end; justify-content: flex-end; min-width: 250px; gap: 16px;">
+                    <div class="mgr-only" style="width: 100%; max-width: 300px; background: rgba(0,0,0,0.3); border: 1px dashed var(--glass-border); border-radius: 12px; padding: 16px;" id="dist-panel">
+                        <div style="font-size: 11px; font-weight: 600; margin-bottom: 12px; color: var(--text-secondary); text-transform: uppercase;">Network Spend Distribution</div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center; font-size: 13px;"><span>TikTok</span><input type="number" id="dist-tt" style="width: 100px; padding: 6px; background: rgba(255,255,255,0.05);" placeholder="$0"></div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center; font-size: 13px;"><span>Facebook</span><input type="number" id="dist-fb" style="width: 100px; padding: 6px; background: rgba(255,255,255,0.05);" placeholder="$0"></div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center; font-size: 13px;"><span>Snapchat</span><input type="number" id="dist-snap" style="width: 100px; padding: 6px; background: rgba(255,255,255,0.05);" placeholder="$0"></div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; font-size: 13px;"><span>Other</span><input type="number" id="dist-other" style="width: 100px; padding: 6px; background: rgba(255,255,255,0.05);" placeholder="$0"></div>
+                    </div>
+                    <button type="button" id="btn-save" class="btn-primary op-only">💾 Send to Manager (Save Draft)</button>
+                    <button type="button" id="btn-finalize" class="btn-primary btn-warning mgr-only" style="display:none;" onclick="finalizeMatrix()">⭐ Finalize & Calculate Matrix</button>
                 </div>
             </div>
         </div>
@@ -259,8 +306,8 @@
 
             <div class="panel">
                 <div class="history-header">
-                    <h2>Saved Entries</h2>
-                    <button id="btn-export" class="btn-export">⬇️ Export Flattened CSV</button>
+                    <h2>Finalized Matrix History</h2>
+                    <button id="btn-export" class="btn-export">⬇️ Export CSV</button>
                 </div>
                 <div id="history-list" class="history-list"></div>
             </div>
@@ -268,37 +315,141 @@
         </div>
     </div>
 
+    <!-- TARGET 2026 LAYOUT -->
+    <div class="target-layout panel" style="display:none; width: 100%; max-width: 600px; margin: 0 auto;">
+        <h2 style="margin-bottom: 20px; text-align: center;">Target 2026</h2>
+        <div style="max-height: 50vh; overflow-y: auto; padding-right: 12px; margin-bottom: 20px; border: 1px solid var(--glass-border); border-radius: 8px;">
+            <table style="width: 100%; border-collapse: collapse; text-align: right;" id="target-table">
+                <thead>
+                    <tr style="border-bottom: 2px solid var(--glass-border); position: sticky; top: 0; background: #111118; z-index: 10;">
+                        <th style="padding: 12px; text-align: center; color: var(--text-secondary);">Week Number</th>
+                        <th style="padding: 12px; color: var(--text-secondary);">Payment (input)</th>
+                    </tr>
+                </thead>
+                <tbody id="target-tbody">
+                </tbody>
+            </table>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; text-align: right;">
+            <tfoot>
+                <tr style="border-top: 2px solid var(--glass-border);">
+                    <td style="padding: 12px; font-weight: bold; text-align: center; text-transform: uppercase;">Total Paid</td>
+                    <td style="padding: 12px; font-weight: bold; background: var(--success); color: #fff; width: 150px; font-size: 16px;" id="target-total">$0.00</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; font-weight: bold; text-align: center;">Remaining (-100000$)</td>
+                    <td style="padding: 12px; font-weight: bold; background: var(--danger); color: #fff; font-size: 16px;" id="target-remaining">-$100,000.00</td>
+                </tr>
+            </tfoot>
+        </table>
+        <button onclick="saveTarget()" class="btn-primary" style="margin-top: 24px;">💾 Save Target Data</button>
+    </div>
+
     <!-- MAIN LOGIC JAVASCRIPT -->
     <script>
+        // Set Role logic
+        let ACTIVE_PENDING_RECORD_ID = null;
+
+        function setRole(role) {
+            document.body.setAttribute('data-role', role);
+            if (role === 'operator') {
+                document.getElementById('btn-op').classList.add('active');
+                document.getElementById('btn-mgr').classList.remove('active');
+                if(document.getElementById('btn-target')) document.getElementById('btn-target').classList.remove('active');
+                document.querySelector('.dashboard-layout').style.display = 'grid';
+                document.querySelector('.target-layout').style.display = 'none';
+                clearWorksheet();
+            } else if (role === 'manager') {
+                document.getElementById('btn-mgr').classList.add('active');
+                document.getElementById('btn-op').classList.remove('active');
+                if(document.getElementById('btn-target')) document.getElementById('btn-target').classList.remove('active');
+                document.querySelector('.dashboard-layout').style.display = 'grid';
+                document.querySelector('.target-layout').style.display = 'none';
+                renderPendingList();
+                clearWorksheet();
+            } else if (role === 'target') {
+                document.getElementById('btn-target').classList.add('active');
+                document.getElementById('btn-op').classList.remove('active');
+                document.getElementById('btn-mgr').classList.remove('active');
+                document.querySelector('.dashboard-layout').style.display = 'none';
+                document.querySelector('.target-layout').style.display = 'flex';
+                document.querySelector('.target-layout').style.flexDirection = 'column';
+                loadTargetData();
+            }
+        }
+
+        // Target 2026 Logic
+        function loadTargetData() {
+            if(!localStorage.getItem('target_seeded_v1')) {
+                const defaultTargetData = {
+                    "1": 339.06, "2": 896.10, "3": 799.22, "4": 1119.40,
+                    "5": 475.79, "6": 482.15, "7": 682.82, "8": "",
+                    "9": 202.71, "10": 285.25, "11": 859.61, "12": 1583.98
+                };
+                localStorage.setItem('target_2026_data', JSON.stringify(defaultTargetData));
+                localStorage.setItem('target_seeded_v1', 'true');
+            }
+
+            const tbody = document.getElementById('target-tbody');
+            if(tbody.innerHTML.trim() === '') {
+                let rowsHTML = '';
+                for(let i=1; i<=52; i++) {
+                    rowsHTML += `<tr>
+                        <td style="padding: 8px; text-align: center; border-bottom: 1px dashed rgba(255,255,255,0.05); font-weight: 500;">Week ${i}</td>
+                        <td style="padding: 8px; border-bottom: 1px dashed rgba(255,255,255,0.05);">
+                            <input type="number" step="any" class="target-input" data-week="${i}" oninput="calculateTarget()" placeholder="-" style="width:120px; float:right; text-align:right;">
+                        </td>
+                    </tr>`;
+                }
+                tbody.innerHTML = rowsHTML;
+            }
+            
+            const data = JSON.parse(localStorage.getItem('target_2026_data') || '{}');
+            document.querySelectorAll('.target-input').forEach(inp => {
+                const w = inp.getAttribute('data-week');
+                inp.value = data[w] || '';
+            });
+            calculateTarget();
+        }
+
+        function calculateTarget() {
+            let total = 0;
+            document.querySelectorAll('.target-input').forEach(inp => {
+                total += parseFloat(inp.value) || 0;
+            });
+            document.getElementById('target-total').innerText = total.toFixed(2) + "$";
+            
+            const remaining = total - 100000;
+            document.getElementById('target-remaining').innerText = remaining.toFixed(2) + "$";
+            document.getElementById('target-remaining').style.background = remaining >= 0 ? 'var(--success)' : 'var(--danger)';
+        }
+
+        function saveTarget() {
+            const data = {};
+            document.querySelectorAll('.target-input').forEach(inp => {
+                if(inp.value) data[inp.getAttribute('data-week')] = parseFloat(inp.value);
+            });
+            localStorage.setItem('target_2026_data', JSON.stringify(data));
+            alert("Target 2026 tracking saved!");
+        }
+
         // Data Models
         const SHIPPING_TIERS = {
-            'KSA': { ret: 2.99, del: 4.49 },
-            'Oman': { ret: 4.99, del: 5.49 },
-            'Kuwait': { ret: 4.99, del: 5.49 },
-            'UAE': { ret: 3.99, del: 4.49 },
-            'Qatar': { ret: 4.99, del: 5.49 },
-            'Bahrain': { ret: 4.99, del: 5.49 },
+            'KSA': { ret: 2.99, del: 4.49 }, 'Oman': { ret: 4.99, del: 5.49 },
+            'Kuwait': { ret: 4.99, del: 5.49 }, 'UAE': { ret: 3.99, del: 4.49 },
+            'Qatar': { ret: 4.99, del: 5.49 }, 'Bahrain': { ret: 4.99, del: 5.49 },
             'Iraq': { ret: 3.99, del: 4.99 }
         };
 
         const CALL_CENTER_FEES = {
-            'Gadget': { conf: 1.0, del: 2.0 },
-            'Cosmetic': { conf: 2.0, del: 3.0 }
+            'Gadget': { conf: 1.0, del: 2.0 }, 'Cosmetic': { conf: 2.0, del: 3.0 }
         };
 
         const PRODUCTS_MAP = {
-            "Blue Product": "CopillaouPros",
-            "Dark Skin Gel": "CopillaouLotion",
-            "Car spray BOX": "CopillaouCoating",
-            "Under eye cream": "CopillaouQingling + boX",
-            "Car Spray": "CopillaouCoating + CopillaouSpray",
-            "Qingling Under eye": "CopillaouQingling",
-            "WAX car": "CopillaouScratch",
-            "CockRoach": "CopFridiRoach",
-            "Car Spray 30CL": "CopillaouSpray",
-            "SKIN": "SKIN",
-            "TEST CAR SPRAY": "TEST CAR SPRAY",
-            "TEST DARK SKIN": "TEST DARK SKIN"
+            "Blue Product": "CopillaouPros", "Dark Skin Gel": "CopillaouLotion", "Car spray BOX": "CopillaouCoating",
+            "Under eye cream": "CopillaouQingling + boX", "Car Spray": "CopillaouCoating + CopillaouSpray",
+            "Qingling Under eye": "CopillaouQingling", "WAX car": "CopillaouScratch", "CockRoach": "CopFridiRoach",
+            "Car Spray 30CL": "CopillaouSpray", "SKIN": "SKIN", "TEST CAR SPRAY": "TEST CAR SPRAY"
         };
 
         const COUNTRY_OPTIONS = Object.keys(SHIPPING_TIERS).map(c => `<option value="${c}">${c}</option>`).join('');
@@ -311,8 +462,29 @@
 
         function handleProductChange(selectEl) {
             const row = selectEl.parentElement.parentElement;
-            const skuInput = row.querySelector('.cr-sku');
-            skuInput.value = PRODUCTS_MAP[selectEl.value] || '-';
+            row.querySelector('.cr-sku').value = PRODUCTS_MAP[selectEl.value] || '-';
+            calculateLive();
+        }
+
+        function clearWorksheet() {
+            document.getElementById('countries-container').innerHTML = '';
+            document.getElementById('in-date-from').valueAsDate = new Date(new Date().getTime() - 7*86400000);
+            document.getElementById('in-date-to').valueAsDate = new Date();
+            ACTIVE_PENDING_RECORD_ID = null;
+            document.getElementById('btn-finalize').style.display = 'none';
+            document.getElementById('current-loaded-id').style.display = 'none';
+            
+            const distPanel = document.getElementById('dist-panel');
+            if (distPanel) {
+                document.getElementById('dist-tt').value = '';
+                document.getElementById('dist-fb').value = '';
+                document.getElementById('dist-snap').value = '';
+                document.getElementById('dist-other').value = '';
+            }
+            
+            if (document.body.getAttribute('data-role') === 'operator') {
+                addCountryRow();
+            }
             calculateLive();
         }
 
@@ -322,7 +494,7 @@
             row.className = 'country-row';
             
             row.innerHTML = `
-                <div class="row-header">
+                <div class="row-header op-field">
                     <select class="cr-product" onchange="handleProductChange(this)">
                         <option value="">-- Select Product --</option>
                         ${PRODUCT_OPTIONS}
@@ -333,26 +505,35 @@
                     <button type="button" class="btn-remove-row" onclick="removeRow(this)">✕</button>
                 </div>
                 <div class="input-grid">
-                    <div class="input-wrapper"><label>Leads (Amount)</label><input type="number" class="cr-leads" placeholder="0"></div>
-                    <div class="input-wrapper"><label>Spend ($)</label><input type="number" class="cr-spend" placeholder="0"></div>
-                    <div class="input-wrapper"><label>CPL</label><div class="cr-cpl-display">$0.00</div></div>
-                    <div class="input-wrapper"></div>
+                    <div class="input-wrapper op-field"><label>Leads (Amount)</label><input type="number" step="any" class="cr-leads" placeholder="0"></div>
+                    <div class="input-wrapper mgr-only"><label>Spend ($)</label><input type="number" step="any" class="cr-spend" placeholder="0"></div>
+                    <div class="input-wrapper mgr-only"><label>CPL</label><div class="cr-cpl-display">$0.00</div></div>
+                    <div class="input-wrapper mgr-only op-only"></div>
                     
-                    <div class="input-wrapper"><label>Price ($)</label><input type="number" class="cr-price" value="50" step="0.5"></div>
-                    <div class="input-wrapper"><label>COGS ($)</label><input type="number" class="cr-cogs" value="5" step="0.5"></div>
-                    <div class="input-wrapper"><label>Conf. (%)</label><input type="number" class="cr-conf" placeholder="50"></div>
-                    <div class="input-wrapper"><label>Deliv. (%)</label><input type="number" class="cr-del" placeholder="50"></div>
+                    <div class="input-wrapper op-field"><label>Price ($)</label><input type="number" step="any" class="cr-price" value="50"></div>
+                    <div class="input-wrapper op-field"><label>COGS ($)</label><input type="number" step="any" class="cr-cogs" value="5"></div>
+                    <div class="input-wrapper op-field"><label>Conf. (%)</label><input type="number" step="any" class="cr-conf" placeholder="50"></div>
+                    <div class="input-wrapper op-field"><label>Deliv. (%)</label><input type="number" step="any" class="cr-del" placeholder="50"></div>
                     
-                    <div class="input-wrapper"><label>Returned</label><input type="number" class="cr-ret" placeholder="0"></div>
-                    <div class="input-wrapper"><label>Upsells</label><input type="number" class="cr-up" placeholder="0"></div>
-                    <div class="input-wrapper" style="grid-column: span 2"><label>Local ROW Net Profit</label><div class="cr-profit-display" style="color:#fff">$0.00</div></div>
+                    <div class="input-wrapper op-field"><label>Returned</label><input type="number" step="any" class="cr-ret" placeholder="Auto" readonly style="background: rgba(0,0,0,0.6); color: var(--text-secondary); cursor: not-allowed;"></div>
+                    <div class="input-wrapper op-field"><label>Upsells</label><input type="number" step="any" class="cr-up" placeholder="0"></div>
+                    <div class="input-wrapper mgr-only" style="grid-column: span 2"><label>Local ROW Net Profit</label><div class="cr-profit-display" style="color:#fff">$0.00</div></div>
                 </div>
             `;
             
             if(defaultData) {
                 row.querySelector('.cr-product').value = defaultData.product || '';
                 row.querySelector('.cr-sku').value = defaultData.sku || '';
+                row.querySelector('.cr-category').value = defaultData.category || 'Gadget';
                 row.querySelector('.cr-country').value = defaultData.country || 'Oman';
+                row.querySelector('.cr-leads').value = defaultData.leads || '';
+                row.querySelector('.cr-spend').value = defaultData.spend || '';
+                row.querySelector('.cr-price').value = defaultData.price || 50;
+                row.querySelector('.cr-cogs').value = defaultData.cogs || 5;
+                row.querySelector('.cr-conf').value = defaultData.confPerc || '';
+                row.querySelector('.cr-del').value = defaultData.delPerc || '';
+                row.querySelector('.cr-ret').value = defaultData.ret || '';
+                row.querySelector('.cr-up').value = defaultData.up || '';
             }
 
             row.querySelectorAll('input, select').forEach(el => el.addEventListener('input', calculateLive));
@@ -362,9 +543,8 @@
 
         function calculateLive() {
             let globalRev = 0, globalCOGS = 0, globalCOD = 0, globalShipping = 0, globalCallCenter = 0;
-            let globalAdSpend = 0, globalLeadFee = 0, globalDelivered = 0, globalLeads = 0;
+            let globalAdSpend = 0, globalLeadFee = 0, globalDelivered = 0, globalLeads = 0, globalExchange = 0;
             let countrySpendMapping = {};
-
             const campaignsToSave = [];
 
             document.querySelectorAll('.country-row').forEach(row => {
@@ -373,7 +553,7 @@
                 const category = row.querySelector('.cr-category').value;
                 const country = row.querySelector('.cr-country').value;
 
-                const leads = parseInt(row.querySelector('.cr-leads').value) || 0;
+                const leads = parseFloat(row.querySelector('.cr-leads').value) || 0;
                 const spend = parseFloat(row.querySelector('.cr-spend').value) || 0;
                 
                 const cpl = leads > 0 ? (spend / leads) : 0;
@@ -383,11 +563,15 @@
                 const cogs = parseFloat(row.querySelector('.cr-cogs').value) || 0;
                 const confPerc = parseFloat(row.querySelector('.cr-conf').value) || 0;
                 const delPerc = parseFloat(row.querySelector('.cr-del').value) || 0;
-                const ret = parseInt(row.querySelector('.cr-ret').value) || 0;
-                const up = parseInt(row.querySelector('.cr-up').value) || 0;
+                const up = parseFloat(row.querySelector('.cr-up').value) || 0;
 
-                const absoluteConf = Math.round(leads * (confPerc / 100));
-                const absoluteDel = Math.round(absoluteConf * (delPerc / 100));
+                const absoluteConf = leads * (confPerc / 100);
+                const absoluteDel = absoluteConf * (delPerc / 100);
+                
+                // Auto-calc Returned
+                const ret = Math.max(0, absoluteConf - absoluteDel);
+                row.querySelector('.cr-ret').value = ret.toFixed(2);
+
 
                 const rowRev = absoluteDel * price;
                 const rowCogs = absoluteDel * cogs;
@@ -399,8 +583,9 @@
                 
                 const rowShipping = (absoluteDel * SHIPPING_TIERS[country].del) + (ret * SHIPPING_TIERS[country].ret);
                 const rowCod = rowRev * 0.05;
+                const rowExchange = rowRev * 0.015;
 
-                const rowPartnerFees = rowLeadFee + rowCallCenter + rowShipping + rowCod;
+                const rowPartnerFees = rowLeadFee + rowCallCenter + rowShipping + rowCod + rowExchange;
                 const rowExpenses = spend + rowCogs + rowPartnerFees;
                 const rowProfit = rowRev - rowExpenses;
 
@@ -408,42 +593,41 @@
                 elProfit.innerText = (rowProfit >= 0 ? '+' : '') + `$${rowProfit.toFixed(2)}`;
                 elProfit.style.color = rowProfit >= 0 ? 'var(--success)' : 'var(--danger)';
 
-                globalLeads += leads;
-                globalAdSpend += spend;
-                globalDelivered += absoluteDel;
-                globalRev += rowRev;
-                globalCOGS += rowCogs;
-                globalLeadFee += rowLeadFee;
-                globalCallCenter += rowCallCenter;
-                globalShipping += rowShipping;
-                globalCOD += rowCod;
+                globalLeads += leads; globalAdSpend += spend; globalDelivered += absoluteDel;
+                globalRev += rowRev; globalCOGS += rowCogs; globalLeadFee += rowLeadFee;
+                globalCallCenter += rowCallCenter; globalShipping += rowShipping; globalCOD += rowCod;
+                globalExchange += rowExchange;
+
                 
                 countrySpendMapping[country] = (countrySpendMapping[country] || 0) + spend;
 
                 campaignsToSave.push({
                     product, sku, category, country, leads, spend, cpl,
                     price, cogs, confPerc, delPerc, absoluteConf, absoluteDel, ret, up,
-                    rowRev, rowPartnerFees, rowProfit
+                    rowRev, rowPartnerFees, rowProfit,
+                    rowLeadFee, rowCallCenter, rowShipping, rowCod, rowExchange, rowCogs, rowExpenses
                 });
             });
 
-            const globalPartnerFees = globalLeadFee + globalCallCenter + globalShipping + globalCOD;
+            const globalPartnerFees = globalLeadFee + globalCallCenter + globalShipping + globalCOD + globalExchange;
             const globalExpenses = globalAdSpend + globalCOGS + globalPartnerFees;
             const globalNetProfit = globalRev - globalExpenses;
 
-            document.getElementById('lp-rev').innerText = `$${globalRev.toFixed(2)}`;
-            document.getElementById('lp-spend').innerText = `$${globalAdSpend.toFixed(2)}`;
-            document.getElementById('lp-cogs').innerText = `$${globalCOGS.toFixed(2)}`;
-            
-            document.getElementById('lp-partner').innerText = `$${globalPartnerFees.toFixed(2)}`;
-            document.getElementById('lp-cc-lead').innerText = `$${globalLeadFee.toFixed(2)}`;
-            document.getElementById('lp-cc-fees').innerText = `$${globalCallCenter.toFixed(2)}`;
-            document.getElementById('lp-shipping').innerText = `$${globalShipping.toFixed(2)}`;
-            document.getElementById('lp-cod').innerText = `$${globalCOD.toFixed(2)}`;
+            if(document.body.getAttribute('data-role') === 'manager') {
+                document.getElementById('lp-rev').innerText = `$${globalRev.toFixed(2)}`;
+                document.getElementById('lp-spend').innerText = `$${globalAdSpend.toFixed(2)}`;
+                document.getElementById('lp-cogs').innerText = `$${globalCOGS.toFixed(2)}`;
+                document.getElementById('lp-partner').innerText = `$${globalPartnerFees.toFixed(2)}`;
+                document.getElementById('lp-cc-lead').innerText = `$${globalLeadFee.toFixed(2)}`;
+                document.getElementById('lp-cc-fees').innerText = `$${globalCallCenter.toFixed(2)}`;
+                document.getElementById('lp-shipping').innerText = `$${globalShipping.toFixed(2)}`;
+                document.getElementById('lp-cod').innerText = `$${globalCOD.toFixed(2)}`;
+                document.getElementById('lp-exchange').innerText = `$${globalExchange.toFixed(2)}`;
 
-            const elGLProfit = document.getElementById('lp-profit');
-            elGLProfit.innerText = (globalNetProfit >= 0 ? '+' : '') + `$${globalNetProfit.toFixed(2)}`;
-            elGLProfit.className = globalNetProfit >= 0 ? 'val-positive' : 'val-negative';
+                const elGLProfit = document.getElementById('lp-profit');
+                elGLProfit.innerText = (globalNetProfit >= 0 ? '+' : '') + `$${globalNetProfit.toFixed(2)}`;
+                elGLProfit.className = globalNetProfit >= 0 ? 'val-positive' : 'val-negative';
+            }
 
             return { 
                 globalRev, globalAdSpend, globalLeads, globalDelivered, 
@@ -451,21 +635,103 @@
             };
         }
 
+        // ================= API / STORAGE INTEGRATION =================
+        const USE_API = window.location.protocol.startsWith('http') && window.location.port !== '';
+
+        async function apiFetch(url) {
+            if(USE_API) {
+                const res = await fetch(url);
+                return await res.json();
+            } else {
+                return JSON.parse(localStorage.getItem(url) || '[]');
+            }
+        }
+
+        async function apiSave(url, data) {
+            if(USE_API) {
+                await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
+            } else {
+                const arr = JSON.parse(localStorage.getItem(url) || '[]');
+                arr.unshift(data);
+                localStorage.setItem(url, JSON.stringify(arr));
+            }
+        }
+
+        async function apiDelete(urlPrefix, id) {
+            if(USE_API) {
+                await fetch(`${urlPrefix}/${id}`, { method: 'DELETE' });
+            } else {
+                let arr = JSON.parse(localStorage.getItem(urlPrefix) || '[]');
+                arr = arr.filter(x => x.id.toString() !== id.toString());
+                localStorage.setItem(urlPrefix, JSON.stringify(arr));
+            }
+        }
+
+        // ================= ENDPOINTS =================
+        async function loadHistory() { return await apiFetch(USE_API ? '/api/history' : 'cod_history'); }
+        async function loadPending() { return await apiFetch(USE_API ? '/api/pending' : 'cod_pending'); }
+        async function deleteRecord(id) {
+            if(!confirm("Delete this matrix block?")) return;
+            await apiDelete(USE_API ? '/api/history' : 'cod_history', id);
+            await renderDashboard();
+        }
+
         // ================= DASHBOARD RENDERING =================
         let trendChartInst = null, spendChartInst = null;
-        async function loadHistory() {
-            try {
-                const res = await fetch('/api/history');
-                return await res.json();
-            } catch(e) { console.error(e); return []; }
+
+        async function renderPendingList() {
+            const listEl = document.getElementById('pending-list');
+            const noMsg = document.getElementById('no-pending-msg');
+            const pending = await loadPending();
+            listEl.innerHTML = '';
+
+            if (pending.length === 0) {
+                listEl.style.display = 'none';
+                noMsg.style.display = 'block';
+            } else {
+                listEl.style.display = 'flex';
+                noMsg.style.display = 'none';
+
+                pending.forEach(p => {
+                    const el = document.createElement('div');
+                    el.className = 'history-item';
+                    const dateDesc = new Date(p.dateFrom).toLocaleDateString('en-GB', {day:'numeric', month:'short'}) + " - " + new Date(p.dateTo).toLocaleDateString('en-GB', {day:'numeric', month:'short'});
+                    
+                    el.innerHTML = `
+                        <div class="h-info" onclick="loadPendingToWorksheet('${p.id}')">
+                            <div class="h-dates">📝 Block: ${dateDesc}</div>
+                            <div class="h-metrics"><span>${p.campaignsToSave.length} Campaigns recorded by Operator</span></div>
+                        </div>
+                        <button class="btn-delete" onclick="event.stopPropagation(); deletePending('${p.id}')" title="Delete">✕</button>
+                    `;
+                    listEl.appendChild(el);
+                });
+            }
         }
-        async function saveHistory(record) {
-            await fetch('/api/history', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(record)
-            });
-        }
+
+        window.deletePending = async function(id) {
+            if(!confirm("Discard this pending entry?")) return;
+            await apiDelete(USE_API ? '/api/pending' : 'cod_pending', id);
+            renderPendingList();
+            if(ACTIVE_PENDING_RECORD_ID === id.toString()) clearWorksheet();
+        };
+
+        window.loadPendingToWorksheet = async function(id) {
+            const pending = await loadPending();
+            const record = pending.find(r => r.id.toString() === id.toString());
+            if(!record) return;
+
+            ACTIVE_PENDING_RECORD_ID = id;
+            document.getElementById('current-loaded-id').style.display = 'block';
+            document.getElementById('current-loaded-id').querySelector('span').innerText = id;
+            document.getElementById('btn-finalize').style.display = 'block';
+
+            document.getElementById('in-date-from').value = record.dateFrom;
+            document.getElementById('in-date-to').value = record.dateTo;
+            
+            document.getElementById('countries-container').innerHTML = '';
+            record.campaignsToSave.forEach(camp => addCountryRow(camp));
+        };
 
         async function renderDashboard() {
             const history = await loadHistory();
@@ -473,7 +739,7 @@
             listEl.innerHTML = '';
             
             if (history.length === 0) {
-                listEl.innerHTML = '<div style="color:var(--text-secondary); text-align:center; padding: 20px;">No saved history found. Start tracking!</div>';
+                listEl.innerHTML = '<div style="color:var(--text-secondary); text-align:center; padding: 20px;">No finalized history.</div>';
             } else {
                 history.forEach((h) => {
                     const el = document.createElement('div');
@@ -481,34 +747,30 @@
                     const sign = h.globalNetProfit >= 0 ? '+' : '';
                     const d1 = new Date(h.dateFrom).toLocaleDateString('en-GB', {day:'numeric', month:'short'});
                     const d2 = new Date(h.dateTo).toLocaleDateString('en-GB', {day:'numeric', month:'short'});
-                    const cpl = h.globalLeads > 0 ? (h.globalAdSpend / h.globalLeads).toFixed(2) : '0.00';
+                    
+                    el.dataset.id = h.id;
+                    el.onclick = () => el.classList.toggle('selected');
 
                     el.innerHTML = `
                         <div class="h-info">
-                            <div class="h-dates">🗓️ ${d1} to ${d2} <span style="font-weight:400; color:#94a3b8; font-size:11px">(${h.campaignsToSave?.length || 1} campaigns)</span></div>
+                            <div class="h-dates">✅ ${d1} to ${d2} <span style="font-weight:400; color:#94a3b8; font-size:11px">(${h.campaignsToSave?.length || 1} campaigns)</span></div>
                             <div class="h-metrics">
                                 <span>Spend: $${(h.globalAdSpend||0).toFixed(0)}</span>
                                 <span>Leads: ${h.globalLeads||0}</span>
-                                <span>Deliv: ${h.globalDelivered||0}</span>
                             </div>
                             <div class="h-profit ${h.globalNetProfit >= 0 ? 'val-positive' : 'val-negative'}">${sign}$${(h.globalNetProfit||0).toFixed(2)} Profit</div>
                         </div>
-                        <button class="btn-delete" onclick="deleteRecord('${h.id}')" title="Delete">✕</button>
+                        <button class="btn-delete" onclick="event.stopPropagation(); deleteRecord('${h.id}')" title="Delete">✕</button>
                     `;
                     listEl.appendChild(el);
                 });
             }
 
             let allProfit = 0, allSpend = 0, allLeads = 0, combinedSpends = {};
-
             history.forEach(h => {
-                allProfit += (h.globalNetProfit || 0);
-                allSpend += (h.globalAdSpend || 0);
-                allLeads += (h.globalLeads || 0);
+                allProfit += (h.globalNetProfit || 0); allSpend += (h.globalAdSpend || 0); allLeads += (h.globalLeads || 0);
                 if(h.countrySpendMapping) {
-                    Object.keys(h.countrySpendMapping).forEach(c => {
-                        combinedSpends[c] = (combinedSpends[c] || 0) + h.countrySpendMapping[c];
-                    });
+                    Object.keys(h.countrySpendMapping).forEach(c => { combinedSpends[c] = (combinedSpends[c] || 0) + h.countrySpendMapping[c]; });
                 }
             });
 
@@ -522,18 +784,12 @@
 
             if (trendChartInst) trendChartInst.destroy();
             trendChartInst = new Chart(document.getElementById('trendChart').getContext('2d'), {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [
-                        { label: 'Net Profit ($)', data: chron.map(h => h.globalNetProfit), borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.3, borderWidth: 2 },
-                        { label: 'Network Spend ($)', data: chron.map(h => h.globalAdSpend), borderColor: '#8b5cf6', backgroundColor: 'transparent', tension: 0.3, borderWidth: 2, borderDash: [5, 5] }
-                    ]
-                },
-                options: { responsive: true, maintainAspectRatio: false, color: '#94a3b8', plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } }, x: { grid: { display: false }, ticks: { color: '#94a3b8' } } } }
+                type: 'line', data: { labels: labels, datasets: [
+                    { label: 'Net Profit ($)', data: chron.map(h => h.globalNetProfit), borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.3, borderWidth: 2 },
+                    { label: 'Network Spend ($)', data: chron.map(h => h.globalAdSpend), borderColor: '#8b5cf6', backgroundColor: 'transparent', tension: 0.3, borderWidth: 2, borderDash: [5, 5] }
+                ]}, options: { responsive: true, maintainAspectRatio: false, color: '#94a3b8', plugins: { legend: { labels: { color: '#94a3b8' } } }, scales: { y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } }, x: { grid: { display: false }, ticks: { color: '#94a3b8' } } } }
             });
 
-            // Color dictionary for consistent chart looks
             const colorsObj = {'Oman': '#eab308', 'KSA': '#22c55e', 'UAE': '#ef4444', 'Kuwait': '#3b82f6', 'Qatar': '#8b5cf6', 'Bahrain': '#ec4899', 'Iraq': '#a8a29e'};
             const dLabels = Object.keys(combinedSpends).length > 0 ? Object.keys(combinedSpends) : ['No Data'];
             const dVals = Object.keys(combinedSpends).length > 0 ? Object.values(combinedSpends) : [1];
@@ -541,81 +797,173 @@
 
             if (spendChartInst) spendChartInst.destroy();
             spendChartInst = new Chart(document.getElementById('spendChart').getContext('2d'), {
-                type: 'doughnut',
-                data: { labels: dLabels, datasets: [{ data: dVals, backgroundColor: dColors, borderWidth: 0, hoverOffset: 4 }] },
+                type: 'doughnut', data: { labels: dLabels, datasets: [{ data: dVals, backgroundColor: dColors, borderWidth: 0, hoverOffset: 4 }] },
                 options: { responsive: true, maintainAspectRatio: false, cutout: '70%', plugins: { title: {display: true, color: '#fff', text: 'Spend by Country'}, legend: { position: 'right', labels: { color: '#94a3b8', boxWidth: 10 } } } }
             });
         }
 
-        window.deleteRecord = async function(id) {
-            if(!confirm("Delete this week's matrix block?")) return;
-            await fetch(`/api/history/${id}`, { method: 'DELETE' });
-            await renderDashboard();
-        };
+        // ================= ACTION BUTTONS =================
 
+        // Operator: Save to Pending
         document.getElementById('btn-save').addEventListener('click', async () => {
             const dateFrom = document.getElementById('in-date-from').value;
             const dateTo = document.getElementById('in-date-to').value;
             if(!dateFrom || !dateTo) return alert("Dates required.");
 
             const metrics = calculateLive();
-            if(metrics.globalAdSpend === 0 && metrics.globalLeads === 0) return alert("Please enter metrics.");
+            if(metrics.globalLeads === 0) return alert("Please enter leads for at least one campaign.");
 
             const record = { id: Date.now(), dateFrom, dateTo, ...metrics, savedAt: new Date().toISOString() };
-            await saveHistory(record);
-            await renderDashboard();
-            alert("Matrix entry saved.");
+            await apiSave(USE_API ? '/api/pending' : 'cod_pending', record);
+            alert("Sent to Manager (Pending block created).");
+            clearWorksheet();
         });
 
+        // Manager: Add Spend & Finalize
+        window.finalizeMatrix = async function() {
+            if(!ACTIVE_PENDING_RECORD_ID) return alert("Please select a pending record to finalize.");
+            
+            const dateFrom = document.getElementById('in-date-from').value;
+            const dateTo = document.getElementById('in-date-to').value;
+            const metrics = calculateLive();
+
+            let spendsAreValid = true;
+            document.querySelectorAll('.cr-spend').forEach(s => { 
+                if(!s.value || parseFloat(s.value) <= 0) spendsAreValid = false; 
+            });
+            if(!spendsAreValid && !confirm("Some campaigns have $0 spend. Finalize anyway?")) return;
+
+            const netSpendObj = {
+                tt: parseFloat(document.getElementById('dist-tt').value) || 0,
+                fb: parseFloat(document.getElementById('dist-fb').value) || 0,
+                snap: parseFloat(document.getElementById('dist-snap').value) || 0,
+                other: parseFloat(document.getElementById('dist-other').value) || 0
+            };
+
+            const finalRecord = { id: ACTIVE_PENDING_RECORD_ID, dateFrom, dateTo, ...metrics, netSpend: netSpendObj, finalizedAt: new Date().toISOString() };
+            
+            // Save to History, remove from Pending
+            await apiSave(USE_API ? '/api/history' : 'cod_history', finalRecord);
+            await apiDelete(USE_API ? '/api/pending' : 'cod_pending', ACTIVE_PENDING_RECORD_ID);
+
+            alert("Matrix entry finalized & calculated successfully!");
+            clearWorksheet();
+            renderDashboard();
+            renderPendingList();
+        };
+
+        // Export
         document.getElementById('btn-export').addEventListener('click', async () => {
-            const history = await loadHistory();
+            let history = await loadHistory();
             if(history.length === 0) return alert("No history to export.");
+
+            const selectedEls = document.querySelectorAll('.history-item.selected');
+            if (selectedEls.length > 0) {
+                const selectedIds = Array.from(selectedEls).map(el => el.dataset.id.toString());
+                history = history.filter(h => selectedIds.includes(h.id.toString()));
+            } else {
+                return alert("Please select at least one matrix block from the history list to export.");
+            }
 
             const headers = [
                 "Start Date", "End Date", "Product", "SKU", "Category", "Country", 
-                "Leads", "Spend ($)", "CPL", "Conf. Rate (%)", "Deliv. Rate (%)", 
+                "Leads", "Spend ($)", "CPL ($)", "Conf. Rate (%)", "Deliv. Rate (%)", 
                 "Abs. Confirmations", "Abs. Deliveries", "Returned", "Upsells",
-                "Unit Price", "COGS", "Row Revenue", "Partner Extrapolated Expenses", "Campaign Net Profit"
+                "Unit Price", "COGS ($)", "Gross Revenue ($)", 
+                "Lead Gen Fee ($)", "Call Center Fee ($)", "Shipping Logistics ($)", 
+                "COD Surcharge ($)", "Exchange Fee ($)", "Partner Platform Fees ($)", 
+                "Total Expenses ($)", "Campaign Net Profit ($)", "Gross Margin (%)"
             ];
 
             const rows = [];
-            let totalSpend = 0, totalLeads = 0, totalProfit = 0;
+            let tLeads=0, tSpend=0, tConf=0, tDel=0, tRet=0, tUp=0;
+            let tRev=0, tLeadFee=0, tCC=0, tShip=0, tCOD=0, tExch=0, tPartner=0;
+            let tCOGS=0, tExp=0, tProfit=0;
             
             history.forEach(h => {
-                totalSpend += (h.globalAdSpend || 0);
-                totalLeads += (h.globalLeads || 0);
-                totalProfit += (h.globalNetProfit || 0);
-                
                 if(h.campaignsToSave && h.campaignsToSave.length > 0) {
                     h.campaignsToSave.forEach(c => {
+                        const margin = c.rowRev > 0 ? ((c.rowProfit / c.rowRev) * 100).toFixed(2) + "%" : "0%";
+                        
+                        let rCogs = c.rowCogs !== undefined ? c.rowCogs : (c.absoluteDel * c.cogs);
+                        let rLeadFee = c.rowLeadFee !== undefined ? c.rowLeadFee : (c.leads * 0.50);
+                        let rCC = c.rowCallCenter !== undefined ? c.rowCallCenter : 0;
+                        let rShip = c.rowShipping !== undefined ? c.rowShipping : 0;
+                        let rCod = c.rowCod !== undefined ? c.rowCod : (c.rowRev * 0.05);
+                        let rExch = c.rowExchange !== undefined ? c.rowExchange : (c.rowRev * 0.015);
+                        let rExp = c.rowExpenses !== undefined ? c.rowExpenses : (c.spend + rCogs + c.rowPartnerFees);
+
                         rows.push([
                             h.dateFrom, h.dateTo, c.product, c.sku, c.category, c.country,
-                            c.leads, c.spend, c.cpl.toFixed(2), c.confPerc, c.delPerc,
-                            c.absoluteConf, c.absoluteDel, c.ret, c.up,
-                            c.price, c.cogs, c.rowRev.toFixed(2), c.rowPartnerFees.toFixed(2), c.rowProfit.toFixed(2)
+                            c.leads, c.spend.toFixed(2), c.cpl.toFixed(2), c.confPerc, c.delPerc,
+                            c.absoluteConf.toFixed(2), c.absoluteDel.toFixed(2), (Number(c.ret)||0).toFixed(2), c.up,
+                            c.price, rCogs.toFixed(2), c.rowRev.toFixed(2),
+                            rLeadFee.toFixed(2), rCC.toFixed(2), rShip.toFixed(2),
+                            rCod.toFixed(2), rExch.toFixed(2), c.rowPartnerFees.toFixed(2),
+                            rExp.toFixed(2), c.rowProfit.toFixed(2), margin
                         ]);
+                        
+                        tLeads += c.leads; tSpend += c.spend;
+                        tConf += c.absoluteConf; tDel += c.absoluteDel; tRet += (Number(c.ret)||0); tUp += c.up;
+                        tCOGS += rCogs; tRev += c.rowRev; 
+                        tLeadFee += rLeadFee; tCC += rCC; tShip += rShip;
+                        tCOD += rCod; tExch += rExch; tPartner += c.rowPartnerFees; 
+                        tExp += rExp; tProfit += c.rowProfit;
                     });
                 }
             });
 
-            const avgCPL = totalLeads > 0 ? (totalSpend / totalLeads) : 0;
-            rows.push([], ["", "", "", "", "", "GLOBAL TOTALS (All Exported Data):", totalLeads, totalSpend.toFixed(2), avgCPL.toFixed(2), "", "", "", "", "", "", "", "", "", "", totalProfit.toFixed(2)]);
+            const tCPL = tLeads > 0 ? (tSpend / tLeads).toFixed(2) : "0.00";
+            const tMargin = tRev > 0 ? ((tProfit / tRev) * 100).toFixed(2) + "%" : "0%";
+            
+            rows.push([]); // Empty spacing
+            rows.push([
+                "GLOBAL TOTALS", "", "", "", "", "",
+                tLeads.toFixed(2), tSpend.toFixed(2), tCPL, "", "",
+                tConf.toFixed(2), tDel.toFixed(2), tRet.toFixed(2), tUp.toFixed(2),
+                "", tCOGS.toFixed(2), tRev.toFixed(2),
+                tLeadFee.toFixed(2), tCC.toFixed(2), tShip.toFixed(2),
+                tCOD.toFixed(2), tExch.toFixed(2), tPartner.toFixed(2),
+                tExp.toFixed(2), tProfit.toFixed(2), tMargin
+            ]);
+
+            // Network Distribution Totals
+            let tTT = 0, tFB = 0, tSnap = 0, tOther = 0;
+            history.forEach(h => {
+                if(h.netSpend) {
+                    tTT += h.netSpend.tt || 0;
+                    tFB += h.netSpend.fb || 0;
+                    tSnap += h.netSpend.snap || 0;
+                    tOther += h.netSpend.other || 0;
+                }
+            });
+            rows.push([]); 
+            rows.push(["NETWORK SPEND DISTRIBUTION", "TOTAL ($)"]);
+            rows.push(["TikTok", tTT.toFixed(2)]);
+            rows.push(["Facebook", tFB.toFixed(2)]);
+            rows.push(["Snapchat", tSnap.toFixed(2)]);
+            rows.push(["Other", tOther.toFixed(2)]);
+
+            let minDate = '', maxDate = '';
+            history.forEach(h => {
+                if (!minDate || h.dateFrom < minDate) minDate = h.dateFrom;
+                if (!maxDate || h.dateTo > maxDate) maxDate = h.dateTo;
+            });
+            let fName = "weekly_report";
+            if (minDate && maxDate) fName += `_${minDate}_to_${maxDate}`;
+            fName += ".csv";
 
             const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(r => r.join(",")).join("\n");
             const link = document.createElement("a");
             link.setAttribute("href", encodeURI(csvContent));
-            link.setAttribute("download", "cod_campaigns_matrix.csv");
+            link.setAttribute("download", fName);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
         });
 
         document.addEventListener('DOMContentLoaded', async () => {
-            const today = new Date();
-            document.getElementById('in-date-to').valueAsDate = today;
-            document.getElementById('in-date-from').valueAsDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-            addCountryRow({ product: 'Car Spray', sku: 'CopillaouCoating', country: 'Oman' });
+            setRole('operator'); // Default
             await renderDashboard();
         });
 
