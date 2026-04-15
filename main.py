@@ -36,7 +36,7 @@ security = HTTPBasic()
 
 def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
     correct_username = secrets.compare_digest(credentials.username, os.environ.get("ADMIN_USER", "admin"))
-    correct_password = secrets.compare_digest(credentials.password, os.environ.get("ADMIN_PASS", "admin"))
+    correct_password = secrets.compare_digest(credentials.password, os.environ.get("ADMIN_PASS", "Smart2001@@"))
     if not (correct_username and correct_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
