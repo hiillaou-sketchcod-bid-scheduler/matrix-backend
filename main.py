@@ -1,9 +1,11 @@
 import os
 import json
 from datetime import datetime
-from fastapi import FastAPI, HTTPException, Request
+import secrets
+from fastapi import FastAPI, HTTPException, Request, Depends, status
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text
 from sqlalchemy.orm import declarative_base, sessionmaker
 
@@ -30,7 +32,20 @@ class MatrixPendingRecord(Base):
 
 Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Enterprise Matrix API")
+security = HTTPBasic()
+
+def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
+    correct_username = secrets.compare_digest(credentials.username, os.environ.get("ADMIN_USER", "admin"))
+    correct_password = secrets.compare_digest(credentials.password, os.environ.get("ADMIN_PASS", "admin"))
+    if not (correct_username and correct_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials.username
+
+app = FastAPI(title="Enterprise Matrix API", dependencies=[Depends(authenticate)])
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
