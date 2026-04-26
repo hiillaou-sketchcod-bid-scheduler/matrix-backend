@@ -636,7 +636,7 @@
         }
 
         // ================= API / STORAGE INTEGRATION =================
-        const USE_API = window.location.protocol.startsWith('http') && window.location.port !== '';
+        const USE_API = window.location.protocol.startsWith('http');
 
         async function apiFetch(url) {
             if(USE_API) {
