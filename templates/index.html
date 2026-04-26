@@ -264,7 +264,7 @@
                 </div>
 
                 <div style="flex:1; display:flex; flex-direction:column; align-items:flex-end; justify-content: flex-end; min-width: 250px; gap: 16px;">
-                    <div class="mgr-only" style="width: 100%; max-width: 300px; background: rgba(0,0,0,0.3); border: 1px dashed var(--glass-border); border-radius: 12px; padding: 16px;" id="dist-panel">
+                    <div style="width: 100%; max-width: 300px; background: rgba(0,0,0,0.3); border: 1px dashed var(--glass-border); border-radius: 12px; padding: 16px;" id="dist-panel">
                         <div style="font-size: 11px; font-weight: 600; margin-bottom: 12px; color: var(--text-secondary); text-transform: uppercase;">Network Spend Distribution</div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center; font-size: 13px;"><span>TikTok</span><input type="number" id="dist-tt" style="width: 100px; padding: 6px; background: rgba(255,255,255,0.05);" placeholder="$0"></div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 8px; align-items: center; font-size: 13px;"><span>Facebook</span><input type="number" id="dist-fb" style="width: 100px; padding: 6px; background: rgba(255,255,255,0.05);" placeholder="$0"></div>
@@ -731,6 +731,12 @@
             
             document.getElementById('countries-container').innerHTML = '';
             record.campaignsToSave.forEach(camp => addCountryRow(camp));
+
+            const ns = record.netSpend || {};
+            document.getElementById('dist-tt').value = ns.tt || '';
+            document.getElementById('dist-fb').value = ns.fb || '';
+            document.getElementById('dist-snap').value = ns.snap || '';
+            document.getElementById('dist-other').value = ns.other || '';
         };
 
         async function renderDashboard() {
@@ -813,7 +819,14 @@
             const metrics = calculateLive();
             if(metrics.globalLeads === 0) return alert("Please enter leads for at least one campaign.");
 
-            const record = { id: Date.now(), dateFrom, dateTo, ...metrics, savedAt: new Date().toISOString() };
+            const netSpend = {
+                tt: parseFloat(document.getElementById('dist-tt').value) || 0,
+                fb: parseFloat(document.getElementById('dist-fb').value) || 0,
+                snap: parseFloat(document.getElementById('dist-snap').value) || 0,
+                other: parseFloat(document.getElementById('dist-other').value) || 0
+            };
+
+            const record = { id: Date.now(), dateFrom, dateTo, ...metrics, netSpend, savedAt: new Date().toISOString() };
             await apiSave(USE_API ? '/api/pending' : 'cod_pending', record);
             alert("Sent to Manager (Pending block created).");
             clearWorksheet();
