@@ -30,6 +30,12 @@ class MatrixPendingRecord(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     data = Column(Text) # JSON string
 
+class MatrixTargetRecord(Base):
+    __tablename__ = "matrix_target_records"
+    year = Column(String, primary_key=True, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    data = Column(Text) # JSON string
+
 Base.metadata.create_all(bind=engine)
 
 security = HTTPBasic()
@@ -136,6 +142,34 @@ def delete_pending(record_id: str):
         if not record:
             raise HTTPException(status_code=404, detail="Not found")
         db.delete(record)
+        db.commit()
+        return {"status": "success"}
+    finally:
+        db.close()
+
+@app.get("/api/target/{year}")
+def get_target(year: str):
+    db = SessionLocal()
+    try:
+        record = db.query(MatrixTargetRecord).filter(MatrixTargetRecord.year == year).first()
+        if not record:
+            return {}
+        return json.loads(record.data)
+    finally:
+        db.close()
+
+@app.post("/api/target/{year}")
+async def save_target(year: str, request: Request):
+    payload = await request.json()
+    db = SessionLocal()
+    try:
+        record = db.query(MatrixTargetRecord).filter(MatrixTargetRecord.year == year).first()
+        if record:
+            record.data = json.dumps(payload)
+            record.updated_at = datetime.utcnow()
+        else:
+            record = MatrixTargetRecord(year=year, data=json.dumps(payload))
+            db.add(record)
         db.commit()
         return {"status": "success"}
     finally:

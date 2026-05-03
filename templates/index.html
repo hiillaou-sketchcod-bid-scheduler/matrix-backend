@@ -379,17 +379,21 @@
         }
 
         // Target 2026 Logic
-        function loadTargetData() {
-            if(!localStorage.getItem('target_seeded_v1')) {
-                const defaultTargetData = {
-                    "1": 339.06, "2": 896.10, "3": 799.22, "4": 1119.40,
-                    "5": 475.79, "6": 482.15, "7": 682.82, "8": "",
-                    "9": 202.71, "10": 285.25, "11": 859.61, "12": 1583.98
-                };
-                localStorage.setItem('target_2026_data', JSON.stringify(defaultTargetData));
-                localStorage.setItem('target_seeded_v1', 'true');
-            }
+        const TARGET_YEAR = '2026';
+        const TARGET_LS_KEY = 'target_' + TARGET_YEAR + '_data';
 
+        async function fetchTargetFromServer() {
+            if(!window.location.protocol.startsWith('http')) return null;
+            try {
+                const res = await fetch('/api/target/' + TARGET_YEAR);
+                if(!res.ok) return null;
+                return await res.json();
+            } catch(e) {
+                return null;
+            }
+        }
+
+        async function loadTargetData() {
             const tbody = document.getElementById('target-tbody');
             if(tbody.innerHTML.trim() === '') {
                 let rowsHTML = '';
@@ -403,11 +407,17 @@
                 }
                 tbody.innerHTML = rowsHTML;
             }
-            
-            const data = JSON.parse(localStorage.getItem('target_2026_data') || '{}');
+
+            let data = await fetchTargetFromServer();
+            if(data && Object.keys(data).length > 0) {
+                localStorage.setItem(TARGET_LS_KEY, JSON.stringify(data));
+            } else {
+                data = JSON.parse(localStorage.getItem(TARGET_LS_KEY) || '{}');
+            }
+
             document.querySelectorAll('.target-input').forEach(inp => {
                 const w = inp.getAttribute('data-week');
-                inp.value = data[w] || '';
+                inp.value = (data[w] !== undefined && data[w] !== '') ? data[w] : '';
             });
             calculateTarget();
         }
@@ -418,19 +428,35 @@
                 total += parseFloat(inp.value) || 0;
             });
             document.getElementById('target-total').innerText = total.toFixed(2) + "$";
-            
+
             const remaining = total - 100000;
             document.getElementById('target-remaining').innerText = remaining.toFixed(2) + "$";
             document.getElementById('target-remaining').style.background = remaining >= 0 ? 'var(--success)' : 'var(--danger)';
         }
 
-        function saveTarget() {
+        async function saveTarget() {
             const data = {};
             document.querySelectorAll('.target-input').forEach(inp => {
                 if(inp.value) data[inp.getAttribute('data-week')] = parseFloat(inp.value);
             });
-            localStorage.setItem('target_2026_data', JSON.stringify(data));
-            alert("Target 2026 tracking saved!");
+            localStorage.setItem(TARGET_LS_KEY, JSON.stringify(data));
+
+            if(window.location.protocol.startsWith('http')) {
+                try {
+                    const res = await fetch('/api/target/' + TARGET_YEAR, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    });
+                    if(!res.ok) throw new Error('HTTP ' + res.status);
+                    alert("Target " + TARGET_YEAR + " saved to server — visible on every device.");
+                    return;
+                } catch(e) {
+                    alert("Saved locally only — server save failed: " + e.message);
+                    return;
+                }
+            }
+            alert("Target " + TARGET_YEAR + " tracking saved (local only).");
         }
 
         // Data Models
