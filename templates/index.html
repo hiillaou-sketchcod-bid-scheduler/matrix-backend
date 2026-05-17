@@ -61,8 +61,7 @@
         /* Role Display Logic */
         body[data-role="operator"] .mgr-only { display: none !important; }
         body[data-role="manager"] .op-only { display: none !important; }
-        body[data-role="manager"] .op-field input, 
-        body[data-role="manager"] .op-field select { pointer-events: none; opacity: 0.5; }
+        /* manager mode: full edit access to all operator fields */
         body[data-role="manager"] .btn-remove-row { display: none; }
         body[data-role="manager"] .btn-add { display: none; }
 
@@ -538,8 +537,8 @@
                     
                     <div class="input-wrapper op-field"><label>Price ($)</label><input type="number" step="any" class="cr-price" value="50"></div>
                     <div class="input-wrapper op-field"><label>COGS ($)</label><input type="number" step="any" class="cr-cogs" value="5"></div>
-                    <div class="input-wrapper op-field"><label>Conf. (%)</label><input type="number" step="any" class="cr-conf" placeholder="50"></div>
-                    <div class="input-wrapper op-field"><label>Deliv. (%)</label><input type="number" step="any" class="cr-del" placeholder="50"></div>
+                    <div class="input-wrapper op-field"><label>Conf. (%)</label><input type="number" step="any" class="cr-conf" value="50"></div>
+                    <div class="input-wrapper op-field"><label>Deliv. (%)</label><input type="number" step="any" class="cr-del" value="50"></div>
                     
                     <div class="input-wrapper op-field"><label>Returned</label><input type="number" step="any" class="cr-ret" placeholder="Auto" readonly style="background: rgba(0,0,0,0.6); color: var(--text-secondary); cursor: not-allowed;"></div>
                     <div class="input-wrapper op-field"><label>Upsells</label><input type="number" step="any" class="cr-up" placeholder="0"></div>
@@ -556,8 +555,8 @@
                 row.querySelector('.cr-spend').value = defaultData.spend || '';
                 row.querySelector('.cr-price').value = defaultData.price || 50;
                 row.querySelector('.cr-cogs').value = defaultData.cogs || 5;
-                row.querySelector('.cr-conf').value = defaultData.confPerc || '';
-                row.querySelector('.cr-del').value = defaultData.delPerc || '';
+                row.querySelector('.cr-conf').value = defaultData.confPerc || 50;
+                row.querySelector('.cr-del').value = defaultData.delPerc || 50;
                 row.querySelector('.cr-ret').value = defaultData.ret || '';
                 row.querySelector('.cr-up').value = defaultData.up || '';
             }
