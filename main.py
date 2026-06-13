@@ -60,9 +60,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+TEMPLATE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates", "index.html")
+
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
-    with open("templates/index.html", "r", encoding="utf-8") as f:
+    with open(TEMPLATE_PATH, "r", encoding="utf-8") as f:
         return f.read()
 
 @app.get("/api/history")

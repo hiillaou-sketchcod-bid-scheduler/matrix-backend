@@ -474,7 +474,19 @@
             "Blue Product": "CopillaouPros", "Dark Skin Gel": "CopillaouLotion", "Car spray BOX": "CopillaouCoating",
             "Under eye cream": "CopillaouQingling + boX", "Car Spray": "CopillaouCoating + CopillaouSpray",
             "Qingling Under eye": "CopillaouQingling", "WAX car": "CopillaouScratch", "CockRoach": "CopFridiRoach",
-            "Car Spray 30CL": "CopillaouSpray", "SKIN": "SKIN", "TEST CAR SPRAY": "TEST CAR SPRAY"
+            "Car Spray 30CL": "CopillaouSpray", "SKIN": "SKIN", "TEST CAR SPRAY": "TEST CAR SPRAY",
+            "Car Spray KSA": "111176000301"
+        };
+
+        // Lofty Service uses a different fee schedule than CodPartner.
+        // Lookup is by SKU so the calculator picks the right partner automatically.
+        const LOFTY_SKUS = new Set(["111176000301"]);
+        const LOFTY_FEES = {
+            leadFee: 0,
+            cc: { perLead: 0.2, perConf: 1.5, perDel: 2.0, perUpsell: 2.0 },
+            shipping: { 'KSA': { del: 4.95, ret: 2.95 } },
+            codPct: 0.05,
+            exchangePct: 0
         };
 
         const COUNTRY_OPTIONS = Object.keys(SHIPPING_TIERS).map(c => `<option value="${c}">${c}</option>`).join('');
@@ -600,15 +612,27 @@
 
                 const rowRev = absoluteDel * price;
                 const rowCogs = absoluteDel * cogs;
-                const rowLeadFee = leads * 0.50; 
-                
-                const ccRateConf = CALL_CENTER_FEES[category].conf;
-                const ccRateDel = CALL_CENTER_FEES[category].del;
-                const rowCallCenter = (absoluteConf * ccRateConf) + (absoluteDel * ccRateDel) + (up * 1.0);
-                
-                const rowShipping = (absoluteDel * SHIPPING_TIERS[country].del) + (ret * SHIPPING_TIERS[country].ret);
-                const rowCod = rowRev * 0.05;
-                const rowExchange = rowRev * 0.015;
+
+                const isLofty = LOFTY_SKUS.has(sku);
+                let rowLeadFee, rowCallCenter, rowShipping, rowCod, rowExchange;
+
+                if (isLofty) {
+                    const lc = LOFTY_FEES.cc;
+                    const ship = LOFTY_FEES.shipping[country] || LOFTY_FEES.shipping['KSA'];
+                    rowLeadFee = leads * LOFTY_FEES.leadFee;
+                    rowCallCenter = (leads * lc.perLead) + (absoluteConf * lc.perConf) + (absoluteDel * lc.perDel) + (up * lc.perUpsell);
+                    rowShipping = (absoluteDel * ship.del) + (ret * ship.ret);
+                    rowCod = rowRev * LOFTY_FEES.codPct;
+                    rowExchange = rowRev * LOFTY_FEES.exchangePct;
+                } else {
+                    const ccRateConf = CALL_CENTER_FEES[category].conf;
+                    const ccRateDel = CALL_CENTER_FEES[category].del;
+                    rowLeadFee = leads * 0.50;
+                    rowCallCenter = (absoluteConf * ccRateConf) + (absoluteDel * ccRateDel) + (up * 1.0);
+                    rowShipping = (absoluteDel * SHIPPING_TIERS[country].del) + (ret * SHIPPING_TIERS[country].ret);
+                    rowCod = rowRev * 0.05;
+                    rowExchange = rowRev * 0.015;
+                }
 
                 const rowPartnerFees = rowLeadFee + rowCallCenter + rowShipping + rowCod + rowExchange;
                 const rowExpenses = spend + rowCogs + rowPartnerFees;
