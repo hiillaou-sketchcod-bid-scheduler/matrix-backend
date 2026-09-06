@@ -30,6 +30,12 @@ class MatrixPendingRecord(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     data = Column(Text) # JSON string
 
+class MatrixProduct(Base):
+    __tablename__ = "matrix_products"
+    name = Column(String, primary_key=True, index=True)
+    sku = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
 class MatrixTargetRecord(Base):
     __tablename__ = "matrix_target_records"
     year = Column(String, primary_key=True, index=True)
@@ -177,3 +183,46 @@ async def save_target(year: str, request: Request):
     finally:
         db.close()
 
+
+
+@app.get("/api/products")
+def get_products():
+    db = SessionLocal()
+    try:
+        records = db.query(MatrixProduct).order_by(MatrixProduct.created_at.asc()).all()
+        return [{"name": r.name, "sku": r.sku} for r in records]
+    finally:
+        db.close()
+
+@app.post("/api/products")
+async def save_product(request: Request):
+    data = await request.json()
+    name = (data.get("name") or "").strip()
+    sku = (data.get("sku") or "").strip()
+    if not name or not sku:
+        raise HTTPException(status_code=400, detail="Missing product name or SKU")
+
+    db = SessionLocal()
+    try:
+        record = db.query(MatrixProduct).filter(MatrixProduct.name == name).first()
+        if record:
+            record.sku = sku
+        else:
+            db.add(MatrixProduct(name=name, sku=sku))
+        db.commit()
+        return {"status": "success"}
+    finally:
+        db.close()
+
+@app.delete("/api/products/{name}")
+def delete_product(name: str):
+    db = SessionLocal()
+    try:
+        record = db.query(MatrixProduct).filter(MatrixProduct.name == name).first()
+        if not record:
+            raise HTTPException(status_code=404, detail="Not found")
+        db.delete(record)
+        db.commit()
+        return {"status": "success"}
+    finally:
+        db.close()
